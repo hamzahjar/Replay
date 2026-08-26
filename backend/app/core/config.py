@@ -3,6 +3,7 @@ from functools import lru_cache
 from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+
 class Settings(BaseSettings):
     app_name: str = "Replay"
     environment: str = "development"
@@ -16,11 +17,22 @@ class Settings(BaseSettings):
     openai_api_key: str
     openai_model: str = "gpt-5.6"
 
+    import_max_file_bytes: int = 250 * 1024 * 1024
+    import_generate_metadata: bool = False
+
     @field_validator("jwt_secret")
     @classmethod
     def validate_jwt_secret(cls, value: str) -> str:
         if len(value.encode("utf-8")) < 32:
             raise ValueError("JWT_SECRET must be at least 32 bytes long.")
+
+        return value
+
+    @field_validator("openai_model")
+    @classmethod
+    def validate_openai_model(cls, value: str) -> str:
+        if not value.strip():
+            return "gpt-5.6"
 
         return value
 
@@ -30,7 +42,6 @@ class Settings(BaseSettings):
         case_sensitive=False,
         extra="ignore",
     )
-
 
 
 @lru_cache

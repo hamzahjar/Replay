@@ -8,14 +8,18 @@ from app.core.config import get_settings
 
 password_hash = PasswordHash.recommended()
 
+AUTH_COOKIE_NAME = "replay_access_token"
+
 
 def hash_password(password: str) -> str:
     return password_hash.hash(password)
 
+
 def verify_password(password: str, hashed_password: str) -> bool:
     return password_hash.verify(password, hashed_password)
 
-def create_access_token(subject:str) -> str:
+
+def create_access_token(subject: str) -> str:
     settings = get_settings()
 
     expires_at = datetime.now(timezone.utc) + timedelta(
@@ -28,7 +32,7 @@ def create_access_token(subject:str) -> str:
     }
 
     return jwt.encode(
-        payload, 
+        payload,
         settings.jwt_secret,
         algorithm=settings.jwt_algorithm,
     )

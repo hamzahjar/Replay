@@ -1,6 +1,10 @@
 from sqlalchemy.orm import Session
 
-from app.core.security import hash_password, verify_password, create_access_token
+from app.core.security import (
+    create_access_token,
+    hash_password,
+    verify_password,
+)
 from app.models.user import User
 from app.repositories.user_repository import UserRepository
 
@@ -11,6 +15,7 @@ class UserService:
 
     def create_user(
         self,
+        display_name: str,
         email: str,
         password: str,
     ) -> User:
@@ -22,11 +27,16 @@ class UserService:
         password_hash = hash_password(password)
 
         user = User(
+            display_name=display_name,
             email=email,
             password_hash=password_hash,
         )
 
         return self.repository.create_user(user)
+
+    def get_user_by_email(self, email: str) -> User | None:
+        return self.repository.get_user_by_email(email)
+
     def authenticate_user(
         self,
         email: str,

@@ -24,6 +24,28 @@ class MessageService:
 
         return self.repository.create_message(message)
 
+    def create_messages(
+        self,
+        conversation_id: int,
+        messages_data: list[MessageCreate],
+        commit: bool = True,
+    ) -> list[Message]:
+        messages = [
+            Message(
+                conversation_id=conversation_id,
+                role=message_data.role,
+                content=message_data.content,
+                sequence_number=message_data.sequence_number,
+                created_at=message_data.created_at,
+            )
+            for message_data in messages_data
+        ]
+
+        return self.repository.create_messages(
+            messages,
+            commit=commit,
+        )
+
     def get_conversation_messages(
         self,
         conversation_id: int,
@@ -46,7 +68,9 @@ class MessageService:
     def delete_conversation_messages(
         self,
         conversation_id: int,
+        commit: bool = True,
     ) -> None:
         self.repository.delete_conversation_messages(
-            conversation_id
+            conversation_id,
+            commit=commit,
         )

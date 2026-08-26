@@ -1,0 +1,316 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Replay</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+
+<body>
+<main class="app">
+
+  <header class="topbar">
+    <div class="brand">
+      <img
+        class="brand-logo"
+        src="assets/replay-logo.png"
+        alt="Replay"
+      >
+
+      <div>
+        <div class="brand-name">Replay</div>
+        <div class="brand-subtitle">AI Conversation Manager</div>
+      </div>
+    </div>
+
+    <button
+      id="refresh-button"
+      class="icon-button"
+      type="button"
+      aria-label="Reload"
+    >
+      ↻
+    </button>
+  </header>
+
+  <section id="main-view" class="view">
+    <section class="section current-section">
+      <p class="eyebrow">CURRENT CHAT</p>
+
+      <h1 id="current-title">
+        No ChatGPT conversation detected
+      </h1>
+
+      <div id="current-empty" class="empty-state">
+        <p>
+          Open a conversation on ChatGPT to preview it here.
+        </p>
+      </div>
+
+      <button
+        id="current-card"
+        class="conversation-card hidden"
+        type="button"
+      >
+        <p
+          id="current-short-description"
+          class="description"
+        ></p>
+
+        <span class="card-hint">
+          Open conversation details →
+        </span>
+      </button>
+    </section>
+
+    <section class="section quick-section">
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">QUICK ACCESS</p>
+          <h2>Recently opened</h2>
+        </div>
+
+        <span
+          class="count-badge"
+          id="quick-count"
+        >
+          0 / 25
+        </span>
+      </div>
+
+      <div
+        id="quick-list"
+        class="quick-list"
+      ></div>
+
+      <button
+        id="save-all-button"
+        class="secondary-button full-width save-all-button"
+        type="button"
+      >
+        Save All to Replay
+      </button>
+    </section>
+
+    <footer class="footer">
+      <button
+        id="account-button"
+        class="footer-button"
+        type="button"
+      >
+        Log in
+      </button>
+
+      <button
+        id="website-button"
+        class="footer-button"
+        type="button"
+      >
+        Open Replay
+      </button>
+    </footer>
+  </section>
+
+  <section
+    id="login-view"
+    class="view hidden"
+  >
+    <div class="auth-panel">
+      <div class="auth-header">
+        <p class="eyebrow">REPLAY ACCOUNT</p>
+
+        <h1 id="auth-title">
+          Welcome back
+        </h1>
+
+        <p id="auth-subtitle">
+          Sign in to continue to Replay.
+        </p>
+      </div>
+
+      <form
+        id="login-form"
+        class="auth-form"
+      >
+        <div
+          id="display-name-field"
+          class="form-field hidden"
+        >
+          <label for="login-display-name">
+            Name
+          </label>
+
+          <input
+            id="login-display-name"
+            type="text"
+            placeholder="Your name"
+            autocomplete="name"
+          >
+        </div>
+
+        <div class="form-field">
+          <label for="login-email">
+            Email
+          </label>
+
+          <input
+            id="login-email"
+            type="email"
+            placeholder="you@example.com"
+            autocomplete="email"
+            required
+          >
+        </div>
+
+        <div class="form-field">
+          <label for="login-password">
+            Password
+          </label>
+
+          <input
+            id="login-password"
+            type="password"
+            placeholder="Enter your password"
+            autocomplete="current-password"
+            required
+          >
+        </div>
+
+        <div
+          id="confirm-password-field"
+          class="form-field hidden"
+        >
+          <label for="login-confirm-password">
+            Confirm Password
+          </label>
+
+          <input
+            id="login-confirm-password"
+            type="password"
+            placeholder="Confirm your password"
+            autocomplete="new-password"
+          >
+        </div>
+
+        <p
+          id="login-status"
+          class="status-text"
+          aria-live="polite"
+        ></p>
+
+        <button
+          id="login-submit"
+          class="primary-button full-width"
+          type="submit"
+        >
+          Sign In
+        </button>
+      </form>
+
+      <p class="auth-footer">
+        <span id="auth-switch-text">
+          Don't have an account?
+        </span>
+
+        <button
+          id="auth-switch-button"
+          class="auth-link"
+          type="button"
+        >
+          Create account
+        </button>
+      </p>
+
+      <button
+        id="back-to-extension-button"
+        class="secondary-button full-width"
+        type="button"
+      >
+        Back to Replay
+      </button>
+    </div>
+  </section>
+
+  <section
+    id="detail-view"
+    class="view hidden"
+  >
+    <button
+      id="detail-back-button"
+      class="back-button"
+      type="button"
+    >
+      ← Recently opened
+    </button>
+
+    <div class="detail-header">
+      <p class="eyebrow">CONVERSATION</p>
+
+      <h1 id="detail-title"></h1>
+    </div>
+
+    <p
+      id="detail-short-description"
+      class="detail-short-description"
+    ></p>
+
+    <div class="detail-block">
+      <p class="detail-label">
+        DESCRIPTION
+      </p>
+
+      <p
+        id="detail-long-description"
+        class="detail-long-description"
+      ></p>
+    </div>
+
+    <div class="detail-meta">
+      <div>
+        <span class="detail-label">
+          MESSAGES
+        </span>
+
+        <span id="detail-message-count"></span>
+      </div>
+
+      <div>
+        <span class="detail-label">
+          STATUS
+        </span>
+
+        <span id="detail-sync-status"></span>
+      </div>
+    </div>
+
+    <div class="detail-actions">
+      <button
+        id="detail-save-button"
+        class="primary-button full-width"
+        type="button"
+      >
+        Save to Replay
+      </button>
+
+      <button
+        id="detail-original-button"
+        class="secondary-button full-width"
+        type="button"
+      >
+        Go to Original Chat
+      </button>
+    </div>
+
+    <p
+      id="detail-status"
+      class="status-text"
+      aria-live="polite"
+    ></p>
+  </section>
+
+</main>
+
+<script src="dist/popup.js"></script>
+</body>
+</html>

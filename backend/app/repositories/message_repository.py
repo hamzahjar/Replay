@@ -18,6 +18,23 @@ class MessageRepository:
 
         return message
 
+    def create_messages(
+        self,
+        messages: list[Message],
+        commit: bool = True,
+    ) -> list[Message]:
+        if not messages:
+            return []
+
+        self.db.add_all(messages)
+
+        if commit:
+            self.db.commit()
+        else:
+            self.db.flush()
+
+        return messages
+
     def get_message_by_id(
         self,
         message_id: int,
@@ -46,10 +63,15 @@ class MessageRepository:
     def delete_conversation_messages(
         self,
         conversation_id: int,
+        commit: bool = True,
     ) -> None:
         statement = delete(Message).where(
             Message.conversation_id == conversation_id
         )
 
         self.db.execute(statement)
-        self.db.commit()
+
+        if commit:
+            self.db.commit()
+        else:
+            self.db.flush()

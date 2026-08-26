@@ -1,6 +1,13 @@
 from datetime import datetime, timezone
 
-from sqlalchemy import DateTime, ForeignKey, String, Text, UniqueConstraint
+from sqlalchemy import (
+    Boolean,
+    DateTime,
+    ForeignKey,
+    String,
+    Text,
+    UniqueConstraint,
+)
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database.base import Base
@@ -77,7 +84,14 @@ class Conversation(Base):
 
     last_synchronized_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True),
-        nullable=True,  
+        nullable=True,
+    )
+
+    is_favourite: Mapped[bool] = mapped_column(
+        Boolean,
+        default=False,
+        nullable=False,
+        server_default="false",
     )
 
     user: Mapped["User"] = relationship(

@@ -3,8 +3,11 @@ from typing import Any
 
 from sqlalchemy.orm import Session
 
+from app.core.config import get_settings
 from app.models.import_job import ImportJob
 from app.repositories.import_job_repository import ImportJobRepository
+from app.schemas.conversation import ConversationCreate
+from app.schemas.message import MessageCreate
 from app.services.ai_service import AIService
 from app.services.conversation_service import ConversationService
 from app.services.message_service import MessageService
@@ -17,7 +20,15 @@ class ImportService:
         self.repository = ImportJobRepository(db)
         self.conversation_service = ConversationService(db)
         self.message_service = MessageService(db)
-        self.ai_service = AIService()
+        self.settings = get_settings()
+        self._ai_service: AIService | None = None
+
+    @property
+    def ai_service(self) -> AIService:
+        if self._ai_service is None:
+            self._ai_service = AIService()
+
+        return self._ai_service
 
     def create_import_job(
         self,
@@ -59,7 +70,11 @@ class ImportService:
         processed_conversations: int,
         failed_conversations: int,
     ) -> ImportJob:
-        import_job.status = "completed"
+        import_job.status = (
+            "completed"
+            if failed_conversations == 0
+            else "completed_with_errors"
+        )
         import_job.total_conversations = total_conversations
         import_job.processed_conversations = processed_conversations
         import_job.failed_conversations = failed_conversations
@@ -73,7 +88,7 @@ class ImportService:
         error_message: str,
     ) -> ImportJob:
         import_job.status = "failed"
-        import_job.error_message = error_message
+        import_job.error_message = error_message[:2000]
         import_job.completed_at = datetime.now(timezone.utc)
 
         return self.repository.update_import_job(import_job)
@@ -100,8 +115,16 @@ class ImportService:
     ) -> ImportJob:
         self.start_import(import_job)
 
-        provider = ChatGPTProvider()
-        conversations = provider.parse_conversations(data)
+        try:
+            provider = ChatGPTProvider()
+            conversations = provider.parse_conversations(data)
+        except ValueError as error:
+            return self.fail_import(import_job, str(error))
+        except Exception:
+            return self.fail_import(
+                import_job,
+                "The export file could not be parsed.",
+            )
 
         import_job.total_conversations = len(conversations)
         self.repository.update_import_job(import_job)
@@ -109,99 +132,133 @@ class ImportService:
         processed_conversations = 0
         failed_conversations = 0
 
-        for conversation_data in conversations:
+        for index, conversation_data in enumerate(conversations):
             try:
-                existing_conversation = (
-                    self.conversation_service.get_by_provider_identity(
-                        user_id=user_id,
-                        provider=conversation_data["provider"],
-                        provider_conversation_id=(
-                            conversation_data[
-                                "provider_conversation_id"
-                            ]
-                        ),
-                    )
+                self._import_single_conversation(
+                    user_id=user_id,
+                    conversation_data=conversation_data,
                 )
 
-                conversation = (
-                    self.conversation_service.create_conversation(
-                        user_id=user_id,
-                        conversation_data=self._build_conversation_create(
-                            conversation_data
-                        ),
-                    )
-                )
-
-                if existing_conversation is not None:
-                    self.message_service.delete_conversation_messages(
-                        conversation.id
-                    )
-
-                for message_data in conversation_data["messages"]:
-                    self.message_service.create_message(
-                        conversation_id=conversation.id,
-                        message_data=self._build_message_create(
-                            message_data
-                        ),
-                    )
-
-                metadata = (
-                    self.ai_service.generate_conversation_metadata(
-                        conversation_data["messages"]
-                    )
-                )
-
-                self.conversation_service.update_conversation(
-                    conversation=conversation,
-                    title=metadata.title,
-                    short_description=metadata.short_description,
-                    long_description=metadata.long_description,
-                )
-
+                self.db.commit()
                 processed_conversations += 1
-
             except Exception:
                 self.db.rollback()
                 failed_conversations += 1
 
-            import_job.processed_conversations = processed_conversations
-            import_job.failed_conversations = failed_conversations
-            self.repository.update_import_job(import_job)
+            if self._should_report_progress(index, len(conversations)):
+                import_job.processed_conversations = (
+                    processed_conversations
+                )
+                import_job.failed_conversations = (
+                    failed_conversations
+                )
+                self.repository.update_import_job(import_job)
 
-        if failed_conversations == 0:
-            return self.complete_import(
-                import_job=import_job,
-                total_conversations=len(conversations),
-                processed_conversations=processed_conversations,
-                failed_conversations=failed_conversations,
+        return self.complete_import(
+            import_job=import_job,
+            total_conversations=len(conversations),
+            processed_conversations=processed_conversations,
+            failed_conversations=failed_conversations,
+        )
+
+    def _should_report_progress(
+        self,
+        index: int,
+        total: int,
+    ) -> bool:
+        if index == total - 1:
+            return True
+
+        return index % 10 == 0
+
+    def _import_single_conversation(
+        self,
+        user_id: int,
+        conversation_data: dict,
+    ) -> None:
+        messages_data = conversation_data["messages"]
+
+        conversation = (
+            self.conversation_service.create_conversation(
+                user_id=user_id,
+                conversation_data=self._build_conversation_create(
+                    conversation_data
+                ),
+                commit=False,
+            )
+        )
+
+        self.message_service.delete_conversation_messages(
+            conversation.id,
+            commit=False,
+        )
+
+        self.message_service.create_messages(
+            conversation_id=conversation.id,
+            messages_data=[
+                self._build_message_create(message_data)
+                for message_data in messages_data
+            ],
+            commit=False,
+        )
+
+        if self.settings.import_generate_metadata:
+            self._apply_ai_metadata(
+                conversation=conversation,
+                messages_data=messages_data,
             )
 
-        import_job.status = "completed_with_errors"
-        import_job.completed_at = datetime.now(timezone.utc)
+        if conversation_data.get("created_at") is not None:
+            conversation.created_at = conversation_data["created_at"]
 
-        return self.repository.update_import_job(import_job)
+        if conversation_data.get("updated_at") is not None:
+            conversation.updated_at = conversation_data["updated_at"]
+
+    def _apply_ai_metadata(
+        self,
+        conversation,
+        messages_data: list[dict],
+    ) -> None:
+        try:
+            metadata = (
+                self.ai_service.generate_conversation_metadata(
+                    [
+                        {
+                            "role": message["role"],
+                            "content": message["content"],
+                        }
+                        for message in messages_data
+                    ]
+                )
+            )
+        except Exception:
+            return
+
+        conversation.title = metadata.title
+        conversation.short_description = (
+            metadata.short_description
+        )
+        conversation.long_description = (
+            metadata.long_description
+        )
 
     def _build_conversation_create(
         self,
         conversation_data: dict,
-    ):
-        from app.schemas.conversation import ConversationCreate
-
+    ) -> ConversationCreate:
         return ConversationCreate(
             provider=conversation_data["provider"],
             provider_conversation_id=(
                 conversation_data["provider_conversation_id"]
             ),
-            title=conversation_data["title"],
+            title=conversation_data["title"][:500],
             source="export",
         )
 
     def _build_message_create(
         self,
         message_data: dict,
-    ):
-        from app.schemas.message import MessageCreate
-
+    ) -> MessageCreate:
         return MessageCreate(
             role=message_data["role"],
             content=message_data["content"],

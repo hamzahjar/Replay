@@ -1,0 +1,33 @@
+{
+  "manifest_version": 3,
+  "name": "Replay",
+  "version": "0.3.0",
+  "description": "Quick access to your recently opened AI conversations.",
+  "permissions": ["storage", "tabs"],
+  "host_permissions": [
+    "https://chatgpt.com/*",
+    "https://www.chatgpt.com/*",
+    "http://localhost:8000/*",
+    "http://localhost:5173/*"
+  ],
+  "icons": {
+    "128": "assets/replay-logo.png"
+  },
+  "action": {
+    "default_title": "Replay",
+    "default_popup": "popup.html"
+  },
+  "background": {
+    "service_worker": "dist/background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://chatgpt.com/*",
+        "https://www.chatgpt.com/*"
+      ],
+      "js": ["dist/content.js"],
+      "run_at": "document_idle"
+    }
+  ]
+}

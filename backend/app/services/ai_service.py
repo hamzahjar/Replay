@@ -22,56 +22,80 @@ class AIService:
     ) -> ConversationMetadata:
         conversation_text = self._build_conversation_text(messages)
 
+        if not conversation_text.strip():
+            raise ValueError(
+                "Cannot generate metadata for an empty conversation."
+            )
+
         response = self.client.responses.parse(
             model=self.model,
             input=[
                 {
                     "role": "system",
                     "content": (
-                        "You generate concise metadata for AI conversations. "
-                        "Create an accurate title, a short description, and "
-                        "a useful long description based only on the "
-                        "conversation provided."
+                        "You analyze complete AI conversations and generate "
+                        "metadata for them.\n\n"
+                        "Read the ENTIRE conversation carefully before "
+                        "responding.\n\n"
+                        "Generate:\n"
+                        "1. A concise but accurate title describing the "
+                        "actual topic of the conversation.\n"
+                        "2. A short description explaining what the "
+                        "conversation is about.\n"
+                        "3. A detailed long description summarizing the "
+                        "important topics, goals, questions, decisions, "
+                        "and outcomes discussed.\n\n"
+                        "Do not simply repeat the first user message. "
+                        "Base the metadata on the conversation as a whole."
                     ),
                 },
                 {
                     "role": "user",
-                    "content": conversation_text,
+                    "content": (
+                        "Analyze this complete conversation and generate "
+                        "the requested metadata:\n\n"
+                        f"{conversation_text}"
+                    ),
                 },
             ],
             text_format=ConversationMetadata,
         )
 
-        output = response.output[0]
+        metadata = response.output_parsed
 
-        if output.type != "message":
+        if metadata is None:
+            for output in response.output:
+                if output.type != "message":
+                    continue
+
+                for content in output.content:
+                    if content.type != "output_text":
+                        continue
+
+                    if content.parsed is not None:
+                        return content.parsed
+
             raise ValueError(
-                "AI returned an unexpected response type."
+                "AI response did not contain parsed conversation metadata."
             )
 
-        content = output.content[0]
-
-        if content.type != "output_text":
-            raise ValueError(
-                "AI returned an unexpected content type."
-            )
-
-        if content.parsed is None:
-            raise ValueError(
-                "AI response could not be parsed."
-            )
-
-        return content.parsed
+        return metadata
 
     def _build_conversation_text(
         self,
         messages: list[dict[str, Any]],
     ) -> str:
-        parts = []
+        parts: list[str] = []
 
         for message in messages:
+            role = str(message.get("role", "unknown")).upper()
+            content = str(message.get("content", "")).strip()
+
+            if not content:
+                continue
+
             parts.append(
-                f"{message['role'].upper()}:\n{message['content']}"
+                f"{role}:\n{content}"
             )
 
         return "\n\n".join(parts)

@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 
 class ConversationCreate(BaseModel):
@@ -14,6 +14,8 @@ class ConversationCreate(BaseModel):
 
 
 class ConversationResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     id: int
     user_id: int
     provider: str
@@ -26,3 +28,4 @@ class ConversationResponse(BaseModel):
     created_at: datetime
     updated_at: datetime
     last_synchronized_at: datetime | None
+    is_favourite: bool
