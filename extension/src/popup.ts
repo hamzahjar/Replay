@@ -568,11 +568,10 @@ function openDetails(
 
   detailSaveButton.textContent=
     conversation.syncStatus==="saved"
-      ?"Saved to Replay"
+      ?"Update in Replay"
       :"Save to Replay";
 
-  detailSaveButton.disabled=
-    conversation.syncStatus==="saved";
+  detailSaveButton.disabled=false;
 
   detailOriginalButton.disabled=
     !conversation.url;
@@ -609,11 +608,10 @@ async function refreshQuickAccess(){
 
       detailSaveButton.textContent=
         updated.syncStatus==="saved"
-          ?"Saved to Replay"
+          ?"Update in Replay"
           :"Save to Replay";
 
-      detailSaveButton.disabled=
-        updated.syncStatus==="saved";
+      detailSaveButton.disabled=false;
 
       detailShortDescription.textContent=
         updated.shortDescription;

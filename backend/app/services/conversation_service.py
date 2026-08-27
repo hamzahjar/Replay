@@ -97,6 +97,9 @@ class ConversationService:
 
         now = datetime.now(timezone.utc)
 
+        incoming_messages = list(payload.messages)
+        replaced_messages = True
+
         if existing_conversation is None:
             conversation = Conversation(
                 user_id=user_id,
@@ -131,24 +134,39 @@ class ConversationService:
                 )
             )
 
-            self.message_service.delete_conversation_messages(
-                conversation.id,
+            stored_count = len(
+                self.message_service.get_conversation_messages(
+                    conversation.id
+                )
             )
 
-        self.message_service.create_messages(
-            conversation_id=conversation.id,
-            messages_data=[
-                MessageCreate(
-                    role=message.role,
-                    content=message.content,
-                    sequence_number=message.sequence_number,
-                    created_at=message.created_at,
+            # A browser only renders part of a long conversation,
+            # so the extension can legitimately capture fewer
+            # messages than are already stored. Replacing in that
+            # case would silently discard the rest, so keep what
+            # is stored and update the metadata only.
+            if len(incoming_messages) < stored_count:
+                replaced_messages = False
+            else:
+                self.message_service.delete_conversation_messages(
+                    conversation.id,
                 )
-                for message in payload.messages
-            ],
-        )
 
-        if payload.messages:
+        if replaced_messages:
+            self.message_service.create_messages(
+                conversation_id=conversation.id,
+                messages_data=[
+                    MessageCreate(
+                        role=message.role,
+                        content=message.content,
+                        sequence_number=message.sequence_number,
+                        created_at=message.created_at,
+                    )
+                    for message in incoming_messages
+                ],
+            )
+
+        if replaced_messages and incoming_messages:
             try:
                 metadata = (
                     self.ai_service.generate_conversation_metadata(

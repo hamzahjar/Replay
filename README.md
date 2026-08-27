@@ -446,6 +446,7 @@ AI conversations can contain sensitive information, including personal informati
 * Replay currently supports ChatGPT only. The provider architecture is designed so that additional providers can be added later.
 * Replay must be running locally to be used. The website and the Chrome extension both depend on the local backend and PostgreSQL database.
 * Imports are processed by the running backend. If the backend is restarted while an import is in progress, that import stops and its status remains "processing". Running the import again resolves this, since re-importing does not create duplicates.
+* The Chrome extension captures the messages currently rendered in the browser. ChatGPT only loads part of a very long conversation until it is scrolled, so a save may capture part of the conversation rather than all of it. Replay never replaces stored messages with a smaller set, so saving the same conversation again later adds to what is stored rather than discarding it. Scrolling to the top of a long conversation before saving captures more of it.
 * Replay imports conversation text. Images, generated files, and Canvas documents are not stored.
 * Very large exports may split conversations across more than one file instead of a single `conversations.json`. Replay imports one file at a time, so each file is selected and imported separately.
 * Exports produced by third-party browser extensions are not supported. Replay expects the `conversations.json` file from ChatGPT's own data export.
@@ -561,6 +562,12 @@ Verify that:
 Replay uses the model set in the `OPENAI_MODEL` environment variable. When that variable is empty or not set, the backend falls back to its configured default of `gpt-5.6-luna`.
 
 Note that bulk imports do not generate descriptions unless `IMPORT_GENERATE_METADATA=true` is set. This is expected behaviour, not a failure.
+
+### A saved conversation is missing messages
+
+The extension can only read the messages ChatGPT has rendered in the page. Long conversations are loaded in parts as you scroll, so a save made without scrolling captures only the visible portion. Scroll to the top of the conversation so the earlier messages load, then save again.
+
+Saving again is safe. Replay never replaces stored messages with a smaller set, so a later partial save cannot remove messages that were already saved.
 
 ### Changes to `.env` have no effect
 
