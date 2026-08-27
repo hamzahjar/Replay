@@ -1,3 +1,4 @@
+import logging
 from datetime import datetime, timezone
 from typing import Any
 
@@ -12,6 +13,9 @@ from app.services.ai_service import AIService
 from app.services.conversation_service import ConversationService
 from app.services.message_service import MessageService
 from app.providers.chatgpt.parser import ChatGPTProvider
+
+
+logger = logging.getLogger(__name__)
 
 
 class ImportService:
@@ -141,9 +145,15 @@ class ImportService:
 
                 self.db.commit()
                 processed_conversations += 1
-            except Exception:
+            except Exception as error:
                 self.db.rollback()
                 failed_conversations += 1
+                logger.warning(
+                    "Failed to import conversation %s: %s: %s",
+                    conversation_data.get("provider_conversation_id"),
+                    type(error).__name__,
+                    error,
+                )
 
             if self._should_report_progress(index, len(conversations)):
                 import_job.processed_conversations = (
@@ -231,7 +241,13 @@ class ImportService:
                     ]
                 )
             )
-        except Exception:
+        except Exception as error:
+            logger.warning(
+                "AI metadata generation failed for conversation %s: %s: %s",
+                conversation.provider_conversation_id,
+                type(error).__name__,
+                error,
+            )
             return
 
         conversation.title = metadata.title
@@ -252,6 +268,7 @@ class ImportService:
                 conversation_data["provider_conversation_id"]
             ),
             title=conversation_data["title"][:500],
+            original_url=conversation_data.get("original_url"),
             source="export",
         )
 

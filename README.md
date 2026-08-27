@@ -6,13 +6,15 @@ Replay is a local AI conversation manager that helps users save, organize, searc
 
 Replay is a full-stack application designed to make managing AI conversations easier. It combines a web application, backend API, PostgreSQL database, and Chrome extension to provide a centralized interface for conversations that would otherwise remain scattered across different AI platforms.
 
-Replay currently supports ChatGPT as its primary provider. Users can import their ChatGPT conversation data into Replay or use the Chrome extension while viewing conversations in ChatGPT. Conversations can be saved to the user's local Replay database and enriched with AI-generated metadata such as titles and descriptions.
+Replay currently supports ChatGPT. Users can import their ChatGPT conversation data into Replay or use the Chrome extension while viewing conversations in ChatGPT. Conversations can be saved to the user's local Replay database and enriched with AI-generated metadata such as titles and descriptions.
 
 The Chrome extension provides quick access to recently opened conversations, displays the currently detected conversation, allows conversations to be saved to Replay, and provides access to the full Replay website. The website provides the larger conversation-management interface, including conversation details, descriptions, synchronization information, and conversation management.
 
 Replay is designed to run locally. Each user provides and manages their own PostgreSQL database and API credentials through their local environment configuration. Replay does not rely on a central Replay database containing every user's conversations.
 
-The project was created as a software engineering project by a university student to gain practical experience building a complete application involving databases, APIs, authentication, browser extensions, frontend and backend development, AI API integration, data processing, and software architecture.
+Because Replay runs locally, the backend, the PostgreSQL database, and the frontend must all be running while the web application is in use. The Chrome extension also communicates with the local Replay backend, so the backend and database must be running for the extension to save conversations or show Replay data.
+
+Replay was created by a university student as a practical software engineering project, with a focus on building experience across databases, APIs, authentication, browser extensions, frontend and backend development, AI API integration, data processing, and software architecture.
 
 ### Core functionality
 
@@ -46,7 +48,7 @@ Replay requires the following:
 * PostgreSQL
 * A PostgreSQL database created locally
 * An OpenAI API key for AI-generated conversation metadata
-* Google Chrome for the browser extension
+* Google Chrome or a Chromium-based browser that supports Chrome extensions for the browser extension
 * Git, if cloning the project from GitHub
 
 The project uses the following major technologies:
@@ -126,19 +128,12 @@ OPENAI_API_KEY=YOUR_OPENAI_API_KEY
 OPENAI_MODEL=gpt-5.6-luna
 ```
 
-The values should include your local PostgreSQL connection information and your OpenAI API key.
+`DATABASE_URL`, `JWT_SECRET`, and `OPENAI_API_KEY` are required and the backend will not start without them. `OPENAI_MODEL` is optional and defaults to `gpt-5.6-luna` when it is not set.
 
-The following settings are optional. Replay uses the defaults shown when they are not set:
+Two further settings are not included in `.env.example` and can be added to `.env` if you need them:
 
-```env
-# Largest conversations.json Replay will accept, in bytes.
-# Default is 250 MB.
-# IMPORT_MAX_FILE_BYTES=262144000
-
-# Generate AI titles and descriptions during a bulk import.
-# Disabled by default. See "Import cost" below.
-# IMPORT_GENERATE_METADATA=false
-```
+* `IMPORT_MAX_FILE_BYTES` — the largest `conversations.json` Replay will accept, in bytes. Defaults to `262144000` (250 MB).
+* `IMPORT_GENERATE_METADATA` — whether to generate AI titles and descriptions during a bulk import. Defaults to `false`. See "Import cost" below.
 
 Your `.env` file contains private credentials and **must not be committed to Git or uploaded publicly**.
 
@@ -167,15 +162,21 @@ Run the Replay database migrations:
 alembic upgrade head
 ```
 
-This creates the database tables required by Replay.
+This creates the database tables required by Replay. On a new database this is the only command needed.
 
-If you are updating an existing Replay database that was created by an older version, the `is_favourite` column may already exist. In that case the migration reports that the column is already present. Record the migration without re-applying it:
+**Upgrading an existing database.** If you are upgrading a Replay database created by an older development version, Alembic may report that the `is_favourite` column already exists. This happens because earlier versions created that column at startup rather than through a migration. Confirm the column is genuinely present:
+
+```bash
+psql -U postgres -d replay -c "\d conversations"
+```
+
+If `is_favourite` is listed, record the migration as applied without running it again:
 
 ```bash
 alembic stamp b1c2d3e4f5a6
 ```
 
-Confirm the database is up to date:
+Either way, confirm the database is up to date:
 
 ```bash
 alembic current
@@ -212,7 +213,7 @@ npm run build
 
 #### 9. Load the extension into Chrome
 
-1. Open Google Chrome.
+1. Open Google Chrome or a Chromium-based browser that supports Chrome extensions.
 2. Navigate to:
 
 ```text
@@ -236,6 +237,8 @@ Replay
 ├── Backend
 └── Chrome Extension
 ```
+
+The backend and PostgreSQL database must be running for the website and Chrome extension to function correctly.
 
 #### 1. Start the backend
 
@@ -277,7 +280,7 @@ Create a Replay account or log in to an existing local account.
 
 #### 4. Use the Chrome extension
 
-Open ChatGPT in Google Chrome and navigate to a conversation.
+Open ChatGPT in Google Chrome or a Chromium-based browser that supports Chrome extensions and navigate to a conversation.
 
 The Replay extension can detect the currently open conversation and display information about it in the extension popup.
 
@@ -313,10 +316,11 @@ Replay also supports importing ChatGPT conversation exports.
 
 **Import the export into Replay**
 
-1. Extract the downloaded ZIP file. It contains `conversations.json` along with a `chat.html` viewer.
+1. Extract the downloaded ZIP file. Alongside `conversations.json` it contains a `chat.html` viewer, an `export_manifest.json` listing the exported files, and account files such as `user.json`, `user_settings.json`, `library_files.json`, and `ads.json`. Replay uses `conversations.json` only.
 2. In Replay, open the import dialog.
-3. Select the `conversations.json` file. Replay only accepts `.json` files from ChatGPT's own export.
-4. Start the import.
+3. Select the `conversations.json` file. Replay expects the `conversations.json` file from ChatGPT's own data export.
+4. On larger exports, there's a possibility that there will be multiple `conversations.json` files. In this scenario, you must import each of the conversation files one by one, in no particular order.
+5. Start the import.
 
 The import runs in the background on the Replay backend. The import dialog reports progress as conversations are processed, then reports how many were imported when it finishes.
 
@@ -334,7 +338,9 @@ Replay imports the user and assistant messages that make up the readable convers
 * Reasoning and "thought process" content from reasoning models
 * Tool output such as browsing results
 
-Images are recorded as an `[Image]` placeholder. The image files themselves are not imported. Citation markers embedded by ChatGPT's search feature are removed from message text.
+Replay imports conversation text and represents unsupported media using placeholders. Where a message contained an image, Replay records an `[Image]` placeholder in its place, and other attachments are recorded as `[Attachment]`. The files themselves are not downloaded or stored, as ChatGPT's export does not include them.
+
+ChatGPT also embeds interface markers inside message text using private-use Unicode characters, covering things such as search citations and image-result groups. These are not readable text and display as unreadable characters if kept, so Replay removes them during import. The surrounding message text is preserved unchanged.
 
 #### 7. AI-generated metadata
 
@@ -350,13 +356,19 @@ When a conversation is saved through the Chrome extension, Replay generates this
 
 **Import cost**
 
-Bulk imports do not generate AI metadata by default. A ChatGPT export can contain thousands of conversations, and generating metadata makes one API request per conversation. Replay uses the titles that ChatGPT already assigned instead, so importing an export costs nothing in API usage.
+Conversations saved through the Chrome extension always receive AI-generated metadata. Bulk imports do not, unless the setting below is enabled, so imported conversations show no short or long description until it is turned on.
 
-To enable it, set the following in `.env`:
+Bulk imports do not generate AI metadata by default. A ChatGPT export can contain thousands of conversations, and generating metadata makes one API request per conversation. Replay uses the titles that ChatGPT already assigned instead, so importing an export costs nothing in API usage. The default is `false` so that a large import cannot use API credits unintentionally.
+
+To generate descriptions for imported conversations, set the following in `.env`:
 
 ```env
 IMPORT_GENERATE_METADATA=true
 ```
+
+Then stop the backend completely and start it again. `uvicorn --reload` only watches Python files, so changes to `.env` are not picked up until the backend is restarted.
+
+Re-importing the same file afterwards adds descriptions to conversations that were already imported, without creating duplicates.
 
 Consider the number of conversations in your export before enabling this.
 
@@ -391,6 +403,7 @@ Replay does not operate a central database that stores everyone's conversations.
 Depending on how you use Replay, it may store:
 
 * Your Replay account information
+* A securely hashed password for your local Replay account, stored using Argon2id. Replay never stores your password itself, and never stores your AI-provider password.
 * Imported AI conversations
 * Conversation messages
 * Conversation titles
@@ -420,7 +433,7 @@ Anyone with access to your computer, PostgreSQL database, or local credentials m
 
 ### Deleting Your Data
 
-You can delete conversations from Replay through the application. Deleting a conversation removes its stored conversation data from the Replay database.
+You can delete conversations from Replay through the application. Deleting a conversation removes its stored conversation data, including its messages, from the Replay database.
 
 If you want to completely remove all Replay data, you can also remove your local Replay PostgreSQL database.
 
@@ -431,8 +444,10 @@ AI conversations can contain sensitive information, including personal informati
 ## Known Limitations
 
 * Replay currently supports ChatGPT only. The provider architecture is designed so that additional providers can be added later.
+* Replay must be running locally to be used. The website and the Chrome extension both depend on the local backend and PostgreSQL database.
 * Imports are processed by the running backend. If the backend is restarted while an import is in progress, that import stops and its status remains "processing". Running the import again resolves this, since re-importing does not create duplicates.
 * Replay imports conversation text. Images, generated files, and Canvas documents are not stored.
+* Very large exports may split conversations across more than one file instead of a single `conversations.json`. Replay imports one file at a time, so each file is selected and imported separately.
 * Exports produced by third-party browser extensions are not supported. Replay expects the `conversations.json` file from ChatGPT's own data export.
 * ChatGPT's export format changes as new features are released, so exports created by future versions of ChatGPT may contain content types Replay does not yet recognize.
 
@@ -506,11 +521,15 @@ Make sure:
 
 Make sure:
 
-* You are using Google Chrome (or any variation of chrome).
+* You are using Google Chrome or a Chromium-based browser that supports Chrome extensions.
 * You are logged into ChatGPT.
 * You have opened an actual ChatGPT conversation.
 * The Replay extension is enabled.
 * The extension was rebuilt after source-code changes.
+
+### Extension cannot save a conversation
+
+The extension sends conversations to the local Replay backend. Make sure the backend is running at `http://localhost:8000`, that PostgreSQL is running, and that you are logged in to Replay through the extension.
 
 ### Import is rejected
 
@@ -539,9 +558,13 @@ Verify that:
 * The API key has available credit/billing configured.
 * The relevant OpenAI API functionality is available to your account.
 
-Replay uses the model set in the `OPENAI_MODEL` environment variable. When that variable is empty, the backend falls back to its configured default of `gpt-5.6`.
+Replay uses the model set in the `OPENAI_MODEL` environment variable. When that variable is empty or not set, the backend falls back to its configured default of `gpt-5.6-luna`.
 
 Note that bulk imports do not generate descriptions unless `IMPORT_GENERATE_METADATA=true` is set. This is expected behaviour, not a failure.
+
+### Changes to `.env` have no effect
+
+The backend reads `.env` once at startup. `uvicorn --reload` watches Python files only, so editing `.env` does not restart it. Stop the backend completely and start it again after changing any environment variable.
 
 ### Useful commands
 
@@ -589,17 +612,6 @@ Hamzah Jarrar
 hamzahjarrar3787@gmail.com
 
 https://github.com/hamzahjar
-
-## Version History
-
-* 1.0.0
-
-  * Current Replay release
-  * Fully functional Replay complete! More features such as extra providers will be added in the next version.
-
-* 0.1
-
-  * Initial Replay release
 
 ## License
 

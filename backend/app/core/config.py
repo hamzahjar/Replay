@@ -15,7 +15,7 @@ class Settings(BaseSettings):
     access_token_expire_minutes: int = 60
 
     openai_api_key: str
-    openai_model: str = "gpt-5.6"
+    openai_model: str = "gpt-5.6-luna"
 
     import_max_file_bytes: int = 250 * 1024 * 1024
     import_generate_metadata: bool = False
@@ -32,7 +32,7 @@ class Settings(BaseSettings):
     @classmethod
     def validate_openai_model(cls, value: str) -> str:
         if not value.strip():
-            return "gpt-5.6"
+            return "gpt-5.6-luna"
 
         return value
 

@@ -40,6 +40,8 @@ class ChatGPTProvider(Provider):
     IMAGE_PLACEHOLDER = "[Image]"
     ATTACHMENT_PLACEHOLDER = "[Attachment]"
 
+    CONVERSATION_URL_BASE = "https://chatgpt.com/c"
+
     def __init__(
         self,
         include_system_messages: bool = False,
@@ -143,6 +145,9 @@ class ChatGPTProvider(Provider):
         return {
             "provider": "chatgpt",
             "provider_conversation_id": provider_conversation_id,
+            "original_url": self._build_original_url(
+                provider_conversation_id
+            ),
             "title": conversation.get("title")
             or "Untitled Conversation",
             "created_at": created_at,
@@ -151,6 +156,15 @@ class ChatGPTProvider(Provider):
             ),
             "messages": messages,
         }
+
+    def _build_original_url(
+        self,
+        provider_conversation_id: str,
+    ) -> str:
+        return (
+            f"{self.CONVERSATION_URL_BASE}/"
+            f"{provider_conversation_id}"
+        )
 
     def _parse_messages(
         self,
