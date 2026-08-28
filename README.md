@@ -2,6 +2,8 @@
 
 Replay is a local AI conversation manager that helps users save, organize, search, and revisit conversations from supported AI platforms in one place.
 
+![Replay Dashboard](docs/dashboard.png)
+
 ## Description
 
 Replay is a full-stack application designed to make managing AI conversations easier. It combines a web application, backend API, PostgreSQL database, and Chrome extension to provide a centralized interface for conversations that would otherwise remain scattered across different AI platforms.
@@ -282,6 +284,8 @@ Create a Replay account or log in to an existing local account.
 
 Open ChatGPT in Google Chrome or a Chromium-based browser that supports Chrome extensions and navigate to a conversation.
 
+![Replay Chrome extension quick access](docs/extension-quick-access.png)
+
 The Replay extension can detect the currently open conversation and display information about it in the extension popup.
 
 The extension provides:
@@ -299,6 +303,8 @@ The extension provides:
 #### 5. Save conversations
 
 When a conversation is detected, open the Replay extension and use the save functionality to save the conversation to the Replay database.
+
+![Conversation details in the Replay extension](docs/extension-conversation.png)
 
 Saved conversations can then be viewed through the Replay website.
 
@@ -389,6 +395,12 @@ From the Replay website, users can:
 * View local data and privacy information
 * Delete conversations
 * Open the original conversation
+
+![Conversation details top](docs/conversation-details1.png)
+
+Scrolling down shows the full message history and a link back to the original conversation.
+
+![Conversation details bottom](docs/conversation-details2.png)
 
 ## Data & Privacy
 
