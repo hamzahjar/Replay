@@ -1,5 +1,4 @@
 import type {CurrentConversation} from "./types";
-import {getQuickAccess,upsertLocalConversation} from "./storage";
 
 let latestConversation:CurrentConversation|null=null;
 
@@ -16,75 +15,17 @@ function isChatGPTUrl(url:string){
   }
 }
 
-function toLocalConversation(
-  conversation:CurrentConversation,
-  existing?:Awaited<ReturnType<typeof getQuickAccess>>[number]
-){
-  const now=new Date().toISOString();
-
-  return {
-    ...conversation,
-
-    /*
-      Preserve AI-generated descriptions if this conversation
-      already has them.
-
-      content.ts provides a local fallback description, but the
-      backend-generated descriptions are better and must not be
-      overwritten every time ChatGPT's DOM changes.
-    */
-    shortDescription:
-      existing?.shortDescription ||
-      conversation.shortDescription,
-
-    longDescription:
-      existing?.longDescription ||
-      conversation.longDescription,
-
-    localId:conversation.providerConversationId
-      ?`${conversation.provider}:${conversation.providerConversationId}`
-      :`${conversation.provider}:${conversation.url}`,
-
-    firstSeenAt:
-      existing?.firstSeenAt ??
-      now,
-
-    lastSeenAt:now,
-
-    syncStatus:
-      existing?.syncStatus ??
-      "local",
-
-    replayId:existing?.replayId
-  };
-}
-
-async function handleConversation(
+/*
+  Only remembers the conversation currently detected in the
+  browser. It is deliberately NOT written to the quick-access
+  queue here: browsing ChatGPT should not silently collect
+  every conversation you open. The popup adds the detected
+  conversation to the queue when the user actually opens it.
+*/
+function handleConversation(
   conversation:CurrentConversation
 ){
   latestConversation=conversation;
-
-  const existingConversations=await getQuickAccess();
-
-  const existing=existingConversations.find(
-    item =>
-      item.provider===conversation.provider&&
-      (
-        (
-          conversation.providerConversationId&&
-          item.providerConversationId===
-            conversation.providerConversationId
-        )||
-        item.url===conversation.url
-      )
-  );
-
-  await upsertLocalConversation(
-    toLocalConversation(
-      conversation,
-      existing
-    )
-  );
 }
 
 chrome.runtime.onMessage.addListener(
@@ -93,7 +34,7 @@ chrome.runtime.onMessage.addListener(
       message?.type===
       "CURRENT_CONVERSATION_UPDATED"
     ){
-      void handleConversation(
+      handleConversation(
         message.conversation as CurrentConversation
       );
 

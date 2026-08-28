@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { useAuth } from "./context/AuthContext";
 
@@ -16,6 +16,8 @@ import {
   getConversations,
   type Conversation,
 } from "./services/api";
+
+import { subscribeToFavouriteChanges } from "./utils/favouritesStore";
 
 import "./App.css";
 
@@ -68,6 +70,38 @@ function App() {
     setConversations(result);
     setHasLoadedConversations(true);
   }
+
+  useEffect(() => {
+    return subscribeToFavouriteChanges(
+      (change) => {
+        setConversations((current) =>
+          current.map((conversation) =>
+            conversation.id ===
+            change.conversationId
+              ? {
+                  ...conversation,
+                  is_favourite:
+                    change.isFavourite,
+                }
+              : conversation,
+          ),
+        );
+
+        setSelectedConversation(
+          (current) =>
+            current &&
+            current.id ===
+              change.conversationId
+              ? {
+                  ...current,
+                  is_favourite:
+                    change.isFavourite,
+                }
+              : current,
+        );
+      },
+    );
+  }, []);
 
   async function openConversationLibrary(
     mode:

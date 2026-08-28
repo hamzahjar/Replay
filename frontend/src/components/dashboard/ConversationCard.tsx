@@ -5,6 +5,11 @@ import {
 } from "react";
 
 import ProviderIcon from "../shared/ProviderIcon";
+import { formatProviderName } from "../../utils/providerName";
+import {
+  emitFavouriteChange,
+  subscribeToFavouriteChanges,
+} from "../../utils/favouritesStore";
 
 import {
   deleteConversation,
@@ -60,6 +65,21 @@ function ConversationCard({
     setLocalIsFavourite(isFavourite);
   }, [isFavourite]);
 
+  useEffect(() => {
+    return subscribeToFavouriteChanges(
+      (change) => {
+        if (
+          change.conversationId ===
+          conversation.id
+        ) {
+          setLocalIsFavourite(
+            change.isFavourite,
+          );
+        }
+      },
+    );
+  }, [conversation.id]);
+
   const date = useMemo(
     () =>
       formatDate(
@@ -88,6 +108,11 @@ function ConversationCard({
         conversation.id,
         nextValue,
       );
+
+      emitFavouriteChange({
+        conversationId: conversation.id,
+        isFavourite: nextValue,
+      });
 
       await onFavouriteChange?.();
     } catch (error) {
@@ -170,7 +195,9 @@ function ConversationCard({
           <h3>{conversation.title}</h3>
 
           <p className="conversation-provider">
-            {conversation.provider}
+            {formatProviderName(
+              conversation.provider,
+            )}
           </p>
         </div>
       </div>

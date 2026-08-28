@@ -5,6 +5,12 @@ import {
 
 import Modal from "../shared/Modal";
 import ProviderIcon from "../shared/ProviderIcon";
+import { formatProviderName } from "../../utils/providerName";
+import { formatSourceName } from "../../utils/sourceName";
+import {
+  emitFavouriteChange,
+  subscribeToFavouriteChanges,
+} from "../../utils/favouritesStore";
 
 import {
   deleteConversation,
@@ -83,6 +89,21 @@ function ConversationDetails({
   ]);
 
   useEffect(() => {
+    return subscribeToFavouriteChanges(
+      (change) => {
+        if (
+          change.conversationId ===
+          conversation.id
+        ) {
+          setIsFavourite(
+            change.isFavourite,
+          );
+        }
+      },
+    );
+  }, [conversation.id]);
+
+  useEffect(() => {
     let cancelled = false;
 
     async function loadMessages() {
@@ -138,6 +159,11 @@ function ConversationDetails({
         conversation.id,
         nextValue,
       );
+
+      emitFavouriteChange({
+        conversationId: conversation.id,
+        isFavourite: nextValue,
+      });
 
       await onChanged?.();
     } catch (error) {
@@ -293,18 +319,14 @@ function ConversationDetails({
             </h2>
 
             <p>
-              {conversation.provider}
+              {formatProviderName(
+                conversation.provider,
+              )}
             </p>
           </div>
         </div>
 
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: "7px",
-          }}
-        >
+        <div className="conversation-details-controls">
           <button
             type="button"
             className="details-favourite-button"
@@ -389,7 +411,9 @@ function ConversationDetails({
           <span>Source</span>
 
           <strong>
-            {conversation.source}
+            {formatSourceName(
+              conversation.source,
+            )}
           </strong>
         </div>
 

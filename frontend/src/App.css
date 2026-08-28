@@ -1013,6 +1013,10 @@
   object-fit: contain;
 }
 
+.modal-heading {
+  margin-bottom: 7px;
+}
+
 .modal-heading h2 {
   margin: 0 0 7px;
 
@@ -1570,6 +1574,15 @@
   color: var(--color-gold);
 
   font-size: 12px;
+}
+
+.conversation-details-controls {
+  display: flex;
+  align-items: center;
+
+  gap: 7px;
+
+  margin-top: 22px;
 }
 
 .conversation-details-meta {

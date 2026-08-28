@@ -1,6 +1,8 @@
 import {
+  clearQuickAccess,
   getAuthState,
   getQuickAccess,
+  rememberCurrentConversation,
   updateLocalConversation
 } from "./storage";
 
@@ -278,9 +280,20 @@ async function detectCurrent(){
 
     currentConversation=conversation;
 
+    /*
+      The popup is open, so the user is actively looking at this
+      conversation. Only now is it added to the quick-access
+      queue.
+    */
+    await rememberCurrentConversation(
+      conversation
+    );
+
     renderCurrentConversation(
       conversation
     );
+
+    await refreshQuickAccess();
 
     /*
       Immediately ask the backend for the AI-generated
@@ -926,8 +939,12 @@ accountButton.addEventListener(
       if(confirm("Log out of Replay?")){
         await logout();
 
-        lastPreviewSignature="";
+        await clearQuickAccess();
 
+        lastPreviewSignature="";
+        currentConversation=null;
+
+        await refreshQuickAccess();
         await refreshAuthUI();
       }
 

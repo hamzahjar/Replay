@@ -1,4 +1,4 @@
-import type {ExtensionAuthState,LocalConversation} from "./types";
+import type {CurrentConversation,ExtensionAuthState,LocalConversation} from "./types";
 
 const QUEUE_KEY="replayLocalQuickAccess";
 const AUTH_KEY="replayAuth";
@@ -40,6 +40,68 @@ export async function updateLocalConversation(localId:string,patch:Partial<Local
   const next=current.map(item=>item.localId===localId?{...item,...patch}:item);
   await setQuickAccess(next);
   return next;
+}
+
+
+/*
+  Builds the stored form of a detected conversation, preserving
+  any AI-generated descriptions and sync state already recorded
+  for it.
+*/
+export function toLocalConversation(
+  conversation:CurrentConversation,
+  existing?:LocalConversation
+):LocalConversation{
+  const now=new Date().toISOString();
+
+  return {
+    ...conversation,
+    shortDescription:
+      existing?.shortDescription||conversation.shortDescription,
+    longDescription:
+      existing?.longDescription||conversation.longDescription,
+    localId:conversation.providerConversationId
+      ?`${conversation.provider}:${conversation.providerConversationId}`
+      :`${conversation.provider}:${conversation.url}`,
+    firstSeenAt:existing?.firstSeenAt??now,
+    lastSeenAt:now,
+    syncStatus:existing?.syncStatus??"local",
+    replayId:existing?.replayId
+  };
+}
+
+/*
+  Adds the conversation the user is currently viewing to the
+  quick-access queue. Called only when the popup is opened, so
+  simply browsing ChatGPT does not collect conversations.
+*/
+export async function rememberCurrentConversation(
+  conversation:CurrentConversation
+):Promise<LocalConversation[]>{
+  const current=await getQuickAccess();
+  const existing=current.find(
+    item=>
+      item.provider===conversation.provider&&
+      (
+        (
+          conversation.providerConversationId&&
+          item.providerConversationId===conversation.providerConversationId
+        )||
+        item.url===conversation.url
+      )
+  );
+
+  return upsertLocalConversation(
+    toLocalConversation(conversation,existing)
+  );
+}
+
+/*
+  Removes every locally queued conversation. Used on sign-out so
+  one account's conversations are not visible to the next.
+*/
+export async function clearQuickAccess(){
+  await chrome.storage.local.remove(QUEUE_KEY);
 }
 
 export async function getAuthState():Promise<ExtensionAuthState>{
