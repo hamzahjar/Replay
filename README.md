@@ -284,7 +284,7 @@ Create a Replay account or log in to an existing local account.
 
 Open ChatGPT in Google Chrome or a Chromium-based browser that supports Chrome extensions and navigate to a conversation.
 
-![Replay Chrome extension quick access](docs/extension-quick-access.png)
+![Replay Chrome extension quick access](docs/extension-conversation.png)
 
 The Replay extension can detect the currently open conversation and display information about it in the extension popup.
 
@@ -304,7 +304,7 @@ The extension provides:
 
 When a conversation is detected, open the Replay extension and use the save functionality to save the conversation to the Replay database.
 
-![Conversation details in the Replay extension](docs/extension-conversation.png)
+![Conversation details in the Replay extension](docs/extension-quick-access.png)
 
 Saved conversations can then be viewed through the Replay website.
 
