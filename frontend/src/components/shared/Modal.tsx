@@ -102,7 +102,9 @@ function Modal({
           />
         </button>
 
-        {children}
+        <div className="modal-body">
+          {children}
+        </div>
       </section>
     </div>
   );
